@@ -77,7 +77,8 @@ class BPSMouseDataset(torch.utils.data.Dataset):
             s3_client: boto3.client = None,
             bucket_name: str = None,
             transform=None,
-            file_on_prem:bool = True):
+            file_on_prem:bool = True,
+            data_dir:str = None):
         
         self.meta_csv_file = meta_csv_file
         self.meta_root_dir = meta_root_dir
@@ -85,9 +86,10 @@ class BPSMouseDataset(torch.utils.data.Dataset):
         self.bucket_name = bucket_name
         self.transform = transform
         self.file_on_prem = file_on_prem
+        self.data_dir = data_dir
 
         # formulate the full path to metadata csv file
-        meta_path = f'{meta_root_dir}/{meta_csv_file}'
+        meta_path = f'{data_dir}/{meta_csv_file}'
         # if the file is not on the local file system, use the get_bytesio_from_s3 function
         # to fetch the file as a BytesIO object, else read the file from the local file system.
         if not file_on_prem:
@@ -143,10 +145,12 @@ class BPSMouseDataset(torch.utils.data.Dataset):
 
         # apply tranformation if available
         if self.transform:
-            img = self.transform(img)
+            img_tensor = self.transform(img)
+        else:
+            img_tensor = img
 
         # return the image and associated label
-        return img, self.meta_df.loc[idx, 'particle_type']
+        return img_tensor, self.meta_df.loc[idx, 'particle_type']
 
 
 def show_label_batch(image: torch.Tensor, label: str):

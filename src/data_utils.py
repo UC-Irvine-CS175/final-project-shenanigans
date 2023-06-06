@@ -113,6 +113,7 @@ def save_tiffs_local_from_s3(
     s3_path: str,
     local_fnames_meta_path: str,
     save_file_path: str,
+    data_dir: str = None
 ) -> None:
     """
     This function retrieves tiff files from a locally stored csv file containing specific aws s3 bucket
@@ -134,13 +135,18 @@ def save_tiffs_local_from_s3(
     local_fnames_meta_path,
     save_file_path)
     # Get s3_file_paths from local_fnames_meta_path csv file
-    s3_file_paths = pd.read_csv(local_fnames_meta_path)['filename']
+    if not os.path.exists(save_file_path):
+        os.makedirs(save_file_path)
+    if data_dir == None:
+        data_dir = save_file_path
+    s3_file_paths = pd.read_csv(f'{data_dir}/{local_fnames_meta_path}')['filename']
 
     # Download files after constructing s3 full paths including the filenames from the csv file
     # Call get_file_from_s3 function for each s3_file_path in s3_file_paths
     for s3_file_path in s3_file_paths:
         s3_file_path = f"{s3_path}/{s3_file_path}"
-        local_file_path = f"{save_file_path}/{s3_file_path}"
+        # local_file_path = f"{save_file_path}/{s3_file_path}"
+        local_file_path = save_file_path
         get_file_from_s3(s3_client, bucket_name, s3_file_path, local_file_path)
 
 def export_subset_meta_dose_hr(

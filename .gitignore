@@ -3,10 +3,12 @@ src/model/solutions
 data/raw
 data/processed/*.tif
 src/model/wandb
+src/model/checkpoints
 
 models/dummy_vis
 models/wandb
 models/
+lightning_logs/
 .vscode
 visualization/baselines
 src/model/TODO.md

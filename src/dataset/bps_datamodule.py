@@ -34,6 +34,10 @@ from src.dataset.bps_dataset import BPSMouseDataset
 from src.dataset.augmentation import (
     NormalizeBPS,
     ResizeBPS,
+    VFlipBPS,
+    HFlipBPS,
+    RotateBPS,
+    RandomCropBPS, 
     ToTensor
 )
 
@@ -55,7 +59,8 @@ class BPSDataModule(pl.LightningDataModule):
                  meta_root_dir: str = None,
                  s3_client: boto3.client = None,
                  s3_path: str = None,
-                 bucket_name: str = None):
+                 bucket_name: str = None,
+                 data_dir: str = ''):
         """
         PyTorch Lightning DataModule for the BPS microscopy data.
 
@@ -91,13 +96,18 @@ class BPSDataModule(pl.LightningDataModule):
         self.meta_dir = meta_root_dir
         self.resize_dims = resize_dims
         self.transform = transforms.Compose([
-                            NormalizeBPS(),
-                            ResizeBPS(resize_dims[0], resize_dims[1]),
-                            ToTensor()
-                ])
+            NormalizeBPS(),
+            ResizeBPS(resize_dims[0], resize_dims[1]),
+            VFlipBPS(),
+            HFlipBPS(),
+            RotateBPS(90),
+            # RandomCropBPS(200, 200),
+            ToTensor()
+        ])
         self.on_prem = file_on_prem
         self.batch_size = batch_size
         self.num_workers = num_workers
+        self.data_dir = data_dir
     
     def prepare_data(self) -> None:
         """
@@ -114,9 +124,9 @@ class BPSDataModule(pl.LightningDataModule):
             bucket_name=self.bucket_name, 
             s3_path=self.s3_path, 
             local_fnames_meta_path=self.train_csv, 
-            save_file_path=self.train_dir
+            save_file_path=self.train_dir,
+            data_dir=self.data_dir
         )
-
 
         # call the save_tiffs_local_from_s3 function to download tiffs from the
         # val_csv file.        
@@ -125,7 +135,8 @@ class BPSDataModule(pl.LightningDataModule):
             bucket_name=self.bucket_name, 
             s3_path=self.s3_path, 
             local_fnames_meta_path=self.val_csv, 
-            save_file_path=self.val_dir
+            save_file_path=self.val_dir,
+            data_dir=self.data_dir
         )
 
 
@@ -138,7 +149,8 @@ class BPSDataModule(pl.LightningDataModule):
                 bucket_name=self.bucket_name, 
                 s3_path=self.s3_path, 
                 local_fnames_meta_path=self.test_csv, 
-                save_file_path=self.test_dir
+                save_file_path=self.test_dir,
+                data_dir=self.data_dir
             )
 
         
@@ -157,7 +169,8 @@ class BPSDataModule(pl.LightningDataModule):
                 # s3_client=self.s3_client,
                 # bucket_name=self.bucket_name,
                 transform=self.transform,
-                file_on_prem=self.on_prem
+                file_on_prem=self.on_prem,
+                data_dir=self.data_dir
             )
             self.train_dataset = train_dataset
 
@@ -169,7 +182,8 @@ class BPSDataModule(pl.LightningDataModule):
                 # s3_client=self.s3_client,
                 # bucket_name=self.bucket_name,
                 transform=self.transform,
-                file_on_prem=self.on_prem
+                file_on_prem=self.on_prem,
+                data_dir=self.data_dir
             )
             self.val_dataset = val_dataset
             
@@ -181,7 +195,8 @@ class BPSDataModule(pl.LightningDataModule):
                 # s3_client=self.s3_client,
                 # bucket_name=self.bucket_name,
                 transform=self.transform,
-                file_on_prem=self.on_prem
+                file_on_prem=self.on_prem,
+                data_dir=self.data_dir
             )
             self.test_dataset = test_dataset
         
@@ -224,16 +239,15 @@ def main():
     s3_client = boto3.client('s3', config=Config(signature_version=UNSIGNED))
     s3_meta_fname = "meta.csv"
 
-
-    data_dir = root / 'data'
+    data_dir = os.path.join(root, 'data')
     # testing get file functions from s3
-    local_train_dir = data_dir / 'processed'
+    local_train_dir = os.path.join(root, 'data', 'processed')
 
-    # testing PyTorch Lightning DataModule class ####
-    train_csv_file = 'processed/meta_dose_hi_hr_4_post_exposure_train.csv'
-    train_dir = data_dir / 'processed'
-    validation_csv_file = 'processed/meta_dose_hi_hr_4_post_exposure_valid.csv'
-    validation_dir = data_dir / 'processed'
+    # testing PyTorch Lightning DataModule class
+    train_dir = os.path.join(root, 'data', 'processed')
+    validation_dir = os.path.join(root, 'data', 'processed')
+    train_csv_file = 'meta_dose_hi_hr_4_post_exposure_train.csv'
+    validation_csv_file = 'meta_dose_hi_hr_4_post_exposure_valid.csv'
 
     bps_dm = BPSDataModule(train_csv_file=train_csv_file,
                            train_dir=train_dir,
@@ -247,7 +261,7 @@ def main():
                            s3_path=s3_path,
                            )
     ##### UNCOMMENT THE LINE BELOW TO DOWNLOAD DATA FROM S3!!! #####
-    bps_dm.prepare_data()
+    # bps_dm.prepare_data()
     ##### WHEN YOU ARE DONE REMEMBER TO COMMENT THE LINE ABOVE TO AVOID
     ##### DOWNLOADING THE DATA AGAIN!!! #####
     bps_dm.setup(stage='train')

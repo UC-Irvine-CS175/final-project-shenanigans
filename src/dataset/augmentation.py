@@ -105,7 +105,10 @@ class RandomCropBPS(object):
 
     def __call__(self, image):
         h, w = image.shape[:2]
-        
+
+        if h < self.output_height or w < self.output_width:
+            return image
+
         if type(self.output_height) == int:
             output_size = (self.output_height, self.output_height)
         else:
@@ -124,8 +127,11 @@ class ToTensor(object):
     def __call__(self, image: np.ndarray) -> torch.Tensor:
         # numpy image: H x W x C
         # torch image: C x H x W
-        return torch.from_numpy(image).unsqueeze(0).float()
-
+        if len(image.shape) == 2:
+            image = image.reshape(image.shape[0], image.shape[1], 1)
+        img = image.transpose((2, 0, 1))
+        img_tensor = torch.from_numpy(img.copy())#.unsqueeze(0)
+        return img_tensor
 
 def main():
     """Driver function for testing the augmentations. Make sure the file paths work for you."""
