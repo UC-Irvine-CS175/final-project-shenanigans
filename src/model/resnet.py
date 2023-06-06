@@ -2,7 +2,6 @@ import torch
 import torch.nn as nn
 import pytorch_lightning as pl
 import torchvision.models as models
-import torch.multiprocessing as mp
 import wandb
 from pytorch_lightning.loggers import WandbLogger
 
@@ -20,14 +19,14 @@ from pyprojroot import here
 root = pyprojroot.find_root(pyprojroot.has_dir(".git"))
 
 class ResNetModel(pl.LightningModule):
-    def __init__(self, num_classes):
+    def __init__(self, num_classes, label_mapping):
         super(ResNetModel, self).__init__()
         self.resnet = models.resnet50(pretrained=True)
         num_features = self.resnet.fc.in_features
         self.resnet.fc = nn.Linear(num_features, num_classes)
 
         self.loss_fn = nn.CrossEntropyLoss()
-        self.label_mapping = {'Fe': 0, 'gamma': 1}
+        self.label_mapping = label_mapping
 
     def forward(self, x):
         return self.resnet(x)
@@ -59,7 +58,7 @@ class ResNetModel(pl.LightningModule):
         accuracy = torch.sum(predicted_labels == targets).item() / targets.size(0)
 
         # Log loss and accuracy
-        wandb.log({"val_loss": loss, "val_accuracy": accuracy})
+        wandb.log({"val_loss": loss, "val_accuracy": accuracy, "predicted_labels": predicted_labels, "target_labels": targets})
 
         return loss
 
@@ -73,20 +72,21 @@ def main():
     wandb_logger = WandbLogger(project='resnet50', log_model=True)
 
     # Create an instance of the ResNetModel
-    num_classes = 2  # Number of classes in bps mouse dataset (Fe, gamma)
-    model = ResNetModel(num_classes)
+    num_classes = 2  # Number of classes in bps mouse dataset
+    label_mapping = {'Fe': 0, 'X-ray': 1}
+    model = ResNetModel(num_classes, label_mapping)
 
     # Define the BPSDataModule for your dataset
     data_dir = os.path.join(root, 'data', 'processed')
-    # train_dir = os.path.join(data_dir, 'train')
-    # validation_dir = os.path.join(data_dir, 'validation')
-    train_dir = os.path.join(data_dir, 'test_train')
-    validation_dir = os.path.join(data_dir, 'test_validation')
+    train_dir = os.path.join(data_dir, 'train')
+    validation_dir = os.path.join(data_dir, 'validation')
+    # train_dir = os.path.join(data_dir, 'test_train')
+    # validation_dir = os.path.join(data_dir, 'test_validation')
 
-    # train_csv_file = 'meta_dose_hi_hr_4_post_exposure_train.csv'
-    # validation_csv_file = 'meta_dose_hi_hr_4_post_exposure_valid.csv'
-    train_csv_file = 'test_train.csv'
-    validation_csv_file = 'test_valid.csv'
+    train_csv_file = 'meta_dose_hi_hr_4_post_exposure_train.csv'
+    validation_csv_file = 'meta_dose_hi_hr_4_post_exposure_valid.csv'
+    # train_csv_file = 'test_train.csv'
+    # validation_csv_file = 'test_valid.csv'
 
 
     bucket_name = "nasa-bps-training-data"
@@ -110,42 +110,23 @@ def main():
         num_workers=4
     )
 
-    data_module.prepare_data()
+    # data_module.prepare_data()
     data_module.setup(stage='train')
     data_module.setup(stage='validate')
 
     # Define the PyTorch Lightning Trainer and train the model
-    # mp.set_start_method('spawn', force=True)
     pl.seed_everything(42)
-    trainer = pl.Trainer(max_epochs=2, logger=wandb_logger)
+    trainer = pl.Trainer(max_epochs=10, logger=wandb_logger)
     trainer.fit(model=model,
             train_dataloaders=data_module.train_dataloader(),
             val_dataloaders=data_module.val_dataloader())
 
     # # Save trained model to checkpoint
-    checkpoint_path = 'src/models/checkpoints/resnet50_model.pth'
+    checkpoint_path = 'src/model/checkpoints/resnet50_model.pth'
     torch.save(model.state_dict(), checkpoint_path)
 
     # # Load the trained model
     # model = ResNetModel.load_from_checkpoint(checkpoint_path)
-
-    # preprocessed_image = data_module.val_dataloader()[0]
-
-    # # Convert the preprocessed image to a PyTorch tensor
-    # input_tensor = ToTensor(preprocessed_image)
-
-    # # Put the model in evaluation mode
-    # model.eval()
-
-    # # Perform inference
-    # with torch.no_grad():
-    #     output = model(input_tensor)
-
-    # # Get the predicted class
-    # predicted_class = torch.argmax(output, dim=1).item()
-
-    # # Print the predicted class label
-    # print(f"Predicted Class: {predicted_class}")
 
 if __name__ == '__main__':
     main()
