@@ -2,8 +2,17 @@ import torch
 import torch.nn as nn
 import pytorch_lightning as pl
 import torchvision.models as models
+from pytorch_lightning.callbacks import ModelCheckpoint
 import wandb
 from pytorch_lightning.loggers import WandbLogger
+
+import os
+import pyprojroot
+from pyprojroot import here
+root = pyprojroot.find_root(pyprojroot.has_dir(".git"))
+
+import sys
+sys.path.append(str(root))
 
 from src.dataset.bps_datamodule import BPSDataModule
 from src.dataset.bps_dataset import BPSMouseDataset
@@ -12,11 +21,6 @@ from src.dataset.augmentation import ToTensor
 import boto3
 from botocore import UNSIGNED
 from botocore.config import Config
-
-import os
-import pyprojroot
-from pyprojroot import here
-root = pyprojroot.find_root(pyprojroot.has_dir(".git"))
 
 class ResNetModel(pl.LightningModule):
     def __init__(self, num_classes, label_mapping):
@@ -58,10 +62,9 @@ class ResNetModel(pl.LightningModule):
         accuracy = torch.sum(predicted_labels == targets).item() / targets.size(0)
 
         # Log loss and accuracy
-        wandb.log({"val_loss": loss, "val_accuracy": accuracy, "predicted_labels": predicted_labels, "target_labels": targets})
+        wandb.log({"val_loss": loss, "val_accuracy": accuracy})
 
         return loss
-
 
     def configure_optimizers(self):
         # optimizer = torch.optim.SGD(self.parameters(), lr=0.01, momentum=0.9)
@@ -100,7 +103,7 @@ def main():
         train_dir = train_dir, 
         val_csv_file = validation_csv_file, 
         val_dir = validation_dir, 
-        resize_dims=(64, 64),
+        resize_dims=(224, 224),
         meta_csv_file = s3_meta_fname,
         meta_root_dir=s3_path,
         s3_client= s3_client,
@@ -121,12 +124,9 @@ def main():
             train_dataloaders=data_module.train_dataloader(),
             val_dataloaders=data_module.val_dataloader())
 
-    # # Save trained model to checkpoint
+    # Save trained model to checkpoint
     checkpoint_path = 'src/model/checkpoints/resnet50_model.pth'
     torch.save(model.state_dict(), checkpoint_path)
-
-    # # Load the trained model
-    # model = ResNetModel.load_from_checkpoint(checkpoint_path)
 
 if __name__ == '__main__':
     main()
