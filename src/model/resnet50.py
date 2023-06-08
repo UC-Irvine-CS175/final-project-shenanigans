@@ -141,7 +141,7 @@ def main():
             val_dataloaders=data_module.val_dataloader())
 
     # Save trained model to checkpoint
-    checkpoint_path = 'src/model/checkpoints/resnet50_model.pth'
+    checkpoint_path = 'checkpoints/resnet50_model-hi_hr_4.pth'
     torch.save(model.state_dict(), checkpoint_path)
 
 if __name__ == '__main__':

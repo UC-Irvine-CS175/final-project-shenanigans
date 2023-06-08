@@ -46,7 +46,8 @@ class ResNetModel(pl.LightningModule):
 
         outputs = self(inputs)
         loss = self.loss_fn(outputs, targets)
-        wandb.log({"train_loss": loss})
+
+        self.log("train_loss", loss, on_step=True, on_epoch=True)  # Log training loss with global step
         return loss
     
     def validation_step(self, batch, batch_idx):
@@ -63,8 +64,9 @@ class ResNetModel(pl.LightningModule):
         _, predicted_labels = torch.max(outputs, dim=1)
         accuracy = torch.sum(predicted_labels == targets).item() / targets.size(0)
 
-        # Log loss and accuracy
-        wandb.log({"val_loss": loss, "val_accuracy": accuracy})
+        # Log validation loss and accuracy with global step
+        self.log("val_loss", loss, on_step=True, on_epoch=True)
+        self.log("val_accuracy", accuracy, on_step=True, on_epoch=True)
 
         return loss
 
@@ -73,7 +75,7 @@ class ResNetModel(pl.LightningModule):
         return optimizer
     
 def main():
-    wandb_logger = WandbLogger( project='resnet101', log_model=True)
+    wandb_logger = WandbLogger(project='resnet101', log_model=True)
 
     # Create an instance of the ResNetModel
     num_classes = 2  # Number of classes in bps mouse dataset
@@ -115,13 +117,13 @@ def main():
 
     # Define the PyTorch Lightning Trainer and train the model
     pl.seed_everything(42)
-    trainer = pl.Trainer(max_epochs=10, logger=wandb_logger)
+    trainer = pl.Trainer(max_epochs=3, logger=wandb_logger)
     trainer.fit(model=model,
             train_dataloaders=data_module.train_dataloader(),
             val_dataloaders=data_module.val_dataloader())
 
     # Save trained model to checkpoint
-    checkpoint_path = 'src/model/checkpoints/resnet101_model.pth'
+    checkpoint_path = 'checkpoints/resnet101_model-hi_hr_4-epoch_3.pth'
     torch.save(model.state_dict(), checkpoint_path)
 
 if __name__ == '__main__':
