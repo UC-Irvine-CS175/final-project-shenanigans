@@ -179,23 +179,26 @@ def export_subset_meta_dose_hr(
     # Load csv file into pandas DataFrame
     df = pd.read_csv(in_csv_path_local)
 
-    # Check that dose_Gy and hr_post_exposure_val are valid
-    if dose_Gy_specifier not in ['hi', 'med', 'low']:
-        raise ValueError('dose_Gy value must be hi, med, or low.')
-    if hr_post_exposure_val not in [4, 24, 48]:
-        raise ValueError('hr_post_exposure_val value must be 4, 24, or 48.')
+    if dose_Gy_specifier != 'all':
+        # Check that dose_Gy and hr_post_exposure_val are valid
+        if dose_Gy_specifier not in ['hi', 'med', 'low']:
+            raise ValueError('dose_Gy value must be hi, med, or low.')
+        if hr_post_exposure_val not in [4, 24, 48]:
+            raise ValueError('hr_post_exposure_val value must be 4, 24, or 48.')
 
-    #               low, med, hi
-    # Fe dose_Gy = [0.0, 0.3, 0.82]
-    # Xray dose_Gy = [0.0, 0.1, 1.0]
-    fe_doses = {'low': 0.0, 'med': 0.3, 'hi': 0.82}
-    xray_doses = {'low': 0.0, 'med': 0.1, 'hi': 1.0}
+        #               low, med, hi
+        # Fe dose_Gy = [0.0, 0.3, 0.82]
+        # Xray dose_Gy = [0.0, 0.1, 1.0]
+        fe_doses = {'low': 0.0, 'med': 0.3, 'hi': 0.82}
+        xray_doses = {'low': 0.0, 'med': 0.1, 'hi': 1.0}
 
-    # Slice DataFrame by attributes of interest
-    df_slice = df[(df['hr_post_exposure'] == hr_post_exposure_val) & (
-        ((df['particle_type'] == 'Fe') & (df['dose_Gy'] == fe_doses[dose_Gy_specifier])) 
-        | ((df['particle_type'] == 'X-ray') & (df['dose_Gy'] == xray_doses[dose_Gy_specifier]))
-    )]
+        # Slice DataFrame by attributes of interest
+        df_slice = df[(df['hr_post_exposure'] == hr_post_exposure_val) & (
+            ((df['particle_type'] == 'Fe') & (df['dose_Gy'] == fe_doses[dose_Gy_specifier])) 
+            | ((df['particle_type'] == 'X-ray') & (df['dose_Gy'] == xray_doses[dose_Gy_specifier]))
+        )]
+    else:
+        df_slice = df[(df['hr_post_exposure'] == hr_post_exposure_val)]
 
     # Write sliced DataFrame to output csv file with same name as input csv file with 
     # _dose_hr_post_exposure.csv appended
@@ -206,12 +209,12 @@ def export_subset_meta_dose_hr(
     # Construct output csv file path using out_dir_csv and the name of the input csv file
     # with the dose_Gy and hr_post_exposure_val appended to the name of the input csv file
     # for data versioning.
-    version_out_csv_path = os.path.join(out_dir_csv, f'{input_file_name}_{dose_Gy_specifier}_{hr_post_exposure_val}.csv')
+    version_out_csv_path = os.path.join(out_dir_csv, f'{input_file_name}_dose_{dose_Gy_specifier}_hr_{hr_post_exposure_val}_post_exposure.csv')
 
     # Write sliced DataFrame to output csv file with name constructed above
     df_slice.to_csv(version_out_csv_path, index=False)
 
-    return (out_csv_path, df_slice.shape[0])
+    return (version_out_csv_path, df_slice.shape[0])
     
 def train_test_split_subset_meta_dose_hr(
         subset_meta_dose_hr_csv_path: str,
@@ -287,45 +290,60 @@ def main():
         s3_file_path=s3_meta_csv_path,
         local_file_path=local_file_path)
 
-    subset_new_path_fname, subset_size = export_subset_meta_dose_hr(
-        dose_Gy_specifier='hi',
-        hr_post_exposure_val=4,
-        in_csv_path_local=local_new_path_fname,
-        out_dir_csv=output_dir)
+    # subset_new_path_fname, subset_size = export_subset_meta_dose_hr(
+    #     dose_Gy_specifier='hi',
+    #     hr_post_exposure_val=4,
+    #     in_csv_path_local=local_new_path_fname,
+    #     out_dir_csv=output_dir)
 
-    print(subset_size)
+    # print(subset_size)
 
-    subset_new_path_fname, subset_size = export_subset_meta_dose_hr(
-        dose_Gy_specifier='med',
-        hr_post_exposure_val=4,
+    # subset_new_path_fname, subset_size = export_subset_meta_dose_hr(
+    #     dose_Gy_specifier='med',
+    #     hr_post_exposure_val=4,
+    #     in_csv_path_local=local_new_path_fname,
+    #     out_dir_csv=output_dir)
+    
+    # print(subset_size)
+
+    # subset_new_path_fname, subset_size = export_subset_meta_dose_hr(
+    #     dose_Gy_specifier='low',
+    #     hr_post_exposure_val=4,
+    #     in_csv_path_local=local_new_path_fname,
+    #     out_dir_csv=output_dir)
+    
+    # print(subset_size)
+
+    # save tiffs locally from s3 using boto3
+    # save_tiffs_local_from_s3(
+    #     s3_client=s3_client,
+    #     bucket_name=bucket_name,
+    #     s3_path=s3_path,
+    #     local_fnames_meta_path=subset_new_path_fname,
+    #     save_file_path=local_file_path,
+    #     data_dir=output_dir
+    # )
+
+    dose_Gy_specifier = 'all'
+    hr_post_exposure_val = 4
+
+    subset_new_path_fname, _ = export_subset_meta_dose_hr(
+        dose_Gy_specifier=dose_Gy_specifier,
+        hr_post_exposure_val=hr_post_exposure_val,
         in_csv_path_local=local_new_path_fname,
         out_dir_csv=output_dir)
     
-    print(subset_size)
-
-    subset_new_path_fname, subset_size = export_subset_meta_dose_hr(
-        dose_Gy_specifier='low',
-        hr_post_exposure_val=4,
-        in_csv_path_local=local_new_path_fname,
-        out_dir_csv=output_dir)
-    
-
-    train_test_split_subset_meta_dose_hr(
+    print(f'subset_new_path_fname: {subset_new_path_fname}')
+        
+    train_csv_path, test_csv_path = train_test_split_subset_meta_dose_hr(
         subset_meta_dose_hr_csv_path=subset_new_path_fname,
         test_size=0.2,
         out_dir_csv=output_dir,
         random_state=42,
         stratify_col="particle_type")
-
     
-    # # save tiffs locally from s3 using boto3
-    # save_tiffs_local_from_s3(
-    # s3_client=s3_client,
-    # bucket_name=bucket_name,
-    # s3_path=s3_path,
-    # local_fnames_meta_path=subset_new_path_fname,
-    # save_file_path=local_file_path)
-
-
+    print(f'train_csv_path: {train_csv_path}')
+    print(f'test_csv_path: {test_csv_path}')
+    
 if __name__ == "__main__":
     main()

@@ -22,10 +22,12 @@ import boto3
 from botocore import UNSIGNED
 from botocore.config import Config
 
+from matplotlib import pyplot as plt, transforms
+
 class ResNetModel(pl.LightningModule):
     def __init__(self, num_classes, label_mapping):
         super(ResNetModel, self).__init__()
-        self.resnet = models.resnet50(pretrained=True)
+        self.resnet = models.resnet101(pretrained=True)
         num_features = self.resnet.fc.in_features
         self.resnet.fc = nn.Linear(num_features, num_classes)
 
@@ -44,7 +46,7 @@ class ResNetModel(pl.LightningModule):
 
         outputs = self(inputs)
         loss = self.loss_fn(outputs, targets)
-        self.log('train_loss', loss)
+        wandb.log({"train_loss": loss})
         return loss
     
     def validation_step(self, batch, batch_idx):
@@ -67,12 +69,11 @@ class ResNetModel(pl.LightningModule):
         return loss
 
     def configure_optimizers(self):
-        # optimizer = torch.optim.SGD(self.parameters(), lr=0.01, momentum=0.9)
-        optimizer = torch.optim.Adam(self.parameters())
+        optimizer = torch.optim.Adam(self.parameters(), lr=0.001)
         return optimizer
     
 def main():
-    wandb_logger = WandbLogger(project='resnet50', log_model=True)
+    wandb_logger = WandbLogger( project='resnet101', log_model=True)
 
     # Create an instance of the ResNetModel
     num_classes = 2  # Number of classes in bps mouse dataset
@@ -81,16 +82,11 @@ def main():
 
     # Define the BPSDataModule for your dataset
     data_dir = os.path.join(root, 'data', 'processed')
-    train_dir = os.path.join(data_dir, 'train')
-    validation_dir = os.path.join(data_dir, 'validation')
-    # train_dir = os.path.join(data_dir, 'test_train')
-    # validation_dir = os.path.join(data_dir, 'test_validation')
+    train_dir = os.path.join(data_dir, 'train-hi_hr_4')
+    validation_dir = os.path.join(data_dir, 'validation-hi_hr_4')
 
     train_csv_file = 'meta_dose_hi_hr_4_post_exposure_train.csv'
     validation_csv_file = 'meta_dose_hi_hr_4_post_exposure_valid.csv'
-    # train_csv_file = 'test_train.csv'
-    # validation_csv_file = 'test_valid.csv'
-
 
     bucket_name = "nasa-bps-training-data"
     s3_path = "Microscopy/train"
@@ -125,90 +121,8 @@ def main():
             val_dataloaders=data_module.val_dataloader())
 
     # Save trained model to checkpoint
-    checkpoint_path = 'src/model/checkpoints/resnet50_model.pth'
+    checkpoint_path = 'src/model/checkpoints/resnet101_model.pth'
     torch.save(model.state_dict(), checkpoint_path)
 
 if __name__ == '__main__':
     main()
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# # from transformers import AutoImageProcessor, ResNetForImageClassification
-# # from datasets import load_dataset
-# import torch
-# import torchvision.models as models
-# from src.dataset.bps_datamodule import BPSDataModule
-# from src.dataset.bps_dataset import BPSMouseDataset
-
-# import pyprojroot
-# from pyprojroot import here
-# root = pyprojroot.find_root(pyprojroot.has_dir(".git"))
-
-# data_dir = root / 'data'
-
-# train_csv_file = 'meta_dose_hi_hr_4_post_exposure_train.csv'
-# train_dir = data_dir / 'processed'
-# validation_csv_file = 'meta_dose_hi_hr_4_post_exposure_valid.csv'
-# validation_dir = data_dir / 'processed'
-
-# # model = torch.hub.load('pytorch/vision:v0.10.0', 'resnet50', pretrained=True)
-# # model.eval()
-
-# # Load the pretrained ResNet model
-# model = models.resnet50(pretrained=True)
-
-# # Get the number of input features for the last layer
-# num_features = model.fc.in_features
-
-# # Replace the last fully connected layer
-# num_classes = 2  # Number of classes in bps mouse dataset (Fe, gamma)
-# model.fc = torch.nn.Linear(num_features, num_classes)
-
-
-
-
-
-
-
-# # Instantiate BPSDataModule 
-# bps_datamodule = BPSMouseDataset(train_csv_file=train_csv_file,
-#                                 train_dir=train_dir,
-#                                 val_csv_file=validation_csv_file,
-#                                 val_dir=validation_dir,
-#                                 resize_dims=(64, 64),
-#                                 batch_size=4,
-#                                 num_workers=2)
-
-# # Setup BPSDataModule which will instantiate the BPSMouseDataset objects
-# # to be used for training and validation depending on the stage ('train' or 'val')
-# bps_datamodule.setup(stage='train')
-
-# dataset = bps_datamodule.train_dataloader()
-# image = dataset[0]
-
-# # processor = AutoImageProcessor.from_pretrained("microsoft/resnet-50")
-# # model = ResNetForImageClassification.from_pretrained("microsoft/resnet-50")
-
-# # inputs = processor(image, return_tensors="pt")
-
-# with torch.no_grad():
-#     logits = model(**inputs).logits
-
-# # model predicts one of the 1000 ImageNet classes
-# predicted_label = logits.argmax(-1).item()
-# print(model.config.id2label[predicted_label])

@@ -5,6 +5,11 @@ data/processed/*.tif
 src/model/wandb
 src/model/checkpoints
 
+src/model/resnet50
+src/model/resnet101
+
+wandb
+
 models/dummy_vis
 models/wandb
 models/
