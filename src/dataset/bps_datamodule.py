@@ -34,6 +34,10 @@ from src.dataset.bps_dataset import BPSMouseDataset
 from src.dataset.augmentation import (
     NormalizeBPS,
     ResizeBPS,
+    VFlipBPS,
+    HFlipBPS,
+    RotateBPS,
+    RandomCropBPS, 
     ToTensor
 )
 
@@ -55,7 +59,8 @@ class BPSDataModule(pl.LightningDataModule):
                  meta_root_dir: str = None,
                  s3_client: boto3.client = None,
                  s3_path: str = None,
-                 bucket_name: str = None):
+                 bucket_name: str = None,
+                 data_dir: str = None):
         """
         PyTorch Lightning DataModule for the BPS microscopy data.
 
@@ -98,6 +103,7 @@ class BPSDataModule(pl.LightningDataModule):
         self.on_prem = file_on_prem
         self.batch_size = batch_size
         self.num_workers = num_workers
+        self.data_dir = data_dir
     
     def prepare_data(self) -> None:
         """
@@ -114,9 +120,9 @@ class BPSDataModule(pl.LightningDataModule):
             bucket_name=self.bucket_name, 
             s3_path=self.s3_path, 
             local_fnames_meta_path=self.train_csv, 
-            save_file_path=self.train_dir
+            save_file_path=self.train_dir,
+            data_dir=self.data_dir
         )
-
 
         # call the save_tiffs_local_from_s3 function to download tiffs from the
         # val_csv file.        
@@ -125,7 +131,8 @@ class BPSDataModule(pl.LightningDataModule):
             bucket_name=self.bucket_name, 
             s3_path=self.s3_path, 
             local_fnames_meta_path=self.val_csv, 
-            save_file_path=self.val_dir
+            save_file_path=self.val_dir,
+            data_dir=self.data_dir
         )
 
 
@@ -138,7 +145,8 @@ class BPSDataModule(pl.LightningDataModule):
                 bucket_name=self.bucket_name, 
                 s3_path=self.s3_path, 
                 local_fnames_meta_path=self.test_csv, 
-                save_file_path=self.test_dir
+                save_file_path=self.test_dir,
+                data_dir=self.data_dir
             )
 
         
@@ -157,7 +165,8 @@ class BPSDataModule(pl.LightningDataModule):
                 # s3_client=self.s3_client,
                 # bucket_name=self.bucket_name,
                 transform=self.transform,
-                file_on_prem=self.on_prem
+                file_on_prem=self.on_prem,
+                data_dir=self.data_dir
             )
             self.train_dataset = train_dataset
 
@@ -169,7 +178,8 @@ class BPSDataModule(pl.LightningDataModule):
                 # s3_client=self.s3_client,
                 # bucket_name=self.bucket_name,
                 transform=self.transform,
-                file_on_prem=self.on_prem
+                file_on_prem=self.on_prem,
+                data_dir=self.data_dir
             )
             self.val_dataset = val_dataset
             
@@ -181,7 +191,8 @@ class BPSDataModule(pl.LightningDataModule):
                 # s3_client=self.s3_client,
                 # bucket_name=self.bucket_name,
                 transform=self.transform,
-                file_on_prem=self.on_prem
+                file_on_prem=self.on_prem,
+                data_dir=self.data_dir
             )
             self.test_dataset = test_dataset
         
