@@ -67,7 +67,11 @@ class BPSConfig:
         dm_stage: Set the partition of data depending to either 'train', 'val', or 'test'
                     However, our test images are not yet available.
 
+        ckpt_dir: Directory and filename of the checkpoint to be loaded.
 
+        save_ckpt_dir: Directory where checkpoint will be saved.
+
+        vis_title: Title of png files to be generated.
     """
     data_dir:           str = root / 'data' / 'processed'
     train_meta_fname:   str = 'meta_dose_hi_hr_4_post_exposure_train.csv'
@@ -81,6 +85,9 @@ class BPSConfig:
     device:             str = 'cuda' if torch.cuda.is_available() else 'cpu'
     num_workers:        int = 4
     dm_stage:           str = 'train'
+    ckpt_dir:           str = 'C:/Users/Nitro5/cs175/final-project-shenanigans/src/model/checkpoints/testgan4_model.pth'
+    save_ckpt_dir:      str = 'src/model/checkpoints/testgan5_model.pth'
+    vis_title:          str = 'gan3'
 
 
 channels = 1 # suggested default : 1, number of image channels (gray scale)
@@ -153,6 +160,8 @@ discriminator = Discriminator()
 
 # generator.load_state_dict(modified_state_dict)
 
+
+
 if cuda:
     generator.cuda()
     discriminator.cuda()
@@ -182,9 +191,9 @@ def main():
     # Using BPSDataModule's setup, define the stage name ('train' or 'val')
     bps_datamodule.setup(stage=config.dm_stage)
 
-    for batch_idx, (image, target) in tqdm(enumerate(bps_datamodule.train_dataloader()), desc="Running model inference"):
-        print(image.shape)
-        break
+    # for batch_idx, (image, target) in tqdm(enumerate(bps_datamodule.train_dataloader()), desc="Running model inference"):
+    #     print(image.shape)
+    #     break
 
     # suggested default - beta parameters (decay of first order momentum of gradients)
     b1 = 0.5
@@ -196,10 +205,19 @@ def main():
     optimizer_G = torch.optim.Adam(generator.parameters(), lr=lr, betas=(b1,b2))
     optimizer_D = torch.optim.Adam(discriminator.parameters(), lr=lr, betas=(b1,b2))
 
+    if config.ckpt_dir != '':
+        ckpt = torch.load(config.ckpt_dir)
+        # print(ckpt.keys())
+        generator.load_state_dict(ckpt)
+
     Tensor = torch.cuda.FloatTensor if cuda else torch.FloatTensor
 
     n_epochs = 200 # suggested default = 200
     for epoch in range(n_epochs):
+        count = 0
+        nrow=1
+        ncols=5
+        fig, axes = plt.subplots(nrows=nrow,ncols=ncols, figsize=(8,2))
         for i, (imgs, _) in enumerate(tqdm(bps_datamodule.train_dataloader())): # This code(enumerate) is dealt with once more in the *TEST_CODE below.
                                                         # Used 'tqdm' for showing progress 
             
@@ -256,32 +274,29 @@ def main():
             sample_gen_imgs_in_train = generator(sample_z_in_train).detach().cpu()
             # gen_imgs.shape == torch.Size([64, 1, 28, 28])
             
-            if ((i+1) % 200) == 0: # show while batch - 200/657, 400/657, 600/657
-                print("GENERATINIG IMAGE...")
-                nrow=1
-                ncols=5
-                fig, axes = plt.subplots(nrows=nrow,ncols=ncols, figsize=(8,2))
-                plt.suptitle('EPOCH : {} | BATCH(ITERATION) : {}'.format(epoch+1, i+1))
-                for ncol in range(ncols):
-                    axes[ncol].imshow(sample_gen_imgs_in_train.permute(0,2,3,1)[ncol], cmap='gray')
-                    axes[ncol].axis('off')
-
-                plt.savefig(f"epoch_{epoch+1}_batch_{i+1}.png")
+            if i in [22,44,66,88, 110]: # show while batch - 200/657, 400/657, 600/657
+                            plt.suptitle('EPOCH : {}'.format(epoch+1))
+                            axes[count].imshow(sample_gen_imgs_in_train.permute(0,2,3,1)[count], cmap='gray')
+                            axes[count].axis('off')
+                            count += 1
 
         print(
             "[Epoch: %d/%d] [Batch: %d/%d] [D loss: %f] [G loss: %f]"
             % (epoch+1, n_epochs, i+1, len(bps_datamodule.train_dataloader()), d_loss.item(), g_loss.item())
         )
-        print("GENERATINIG IMAGE...")
-        nrow=1
-        ncols=5
-        fig, axes = plt.subplots(nrows=nrow,ncols=ncols, figsize=(8,2))
-        plt.suptitle('EPOCH : {}'.format(epoch+1))
-        for ncol in range(ncols):
-            axes[ncol].imshow(sample_gen_imgs_in_train.permute(0,2,3,1)[ncol], cmap='gray')
-            axes[ncol].axis('off')
+        # print("GENERATING IMAGE...")
+        # nrow=1
+        # ncols=5
+        # fig, axes = plt.subplots(nrows=nrow,ncols=ncols, figsize=(8,2))
+        # plt.suptitle('EPOCH : {}'.format(epoch+1))
+        # for ncol in range(ncols):
+        #     axes[ncol].imshow(sample_gen_imgs_in_train.permute(0,2,3,1)[ncol], cmap='gray')
+        #     axes[ncol].axis('off')
 
-        plt.savefig(f"run4_epoch_{epoch+1}.png")
+        plt.savefig(f"{config.vis_title}_epoch_{epoch+1}.png")
+    
+    torch.save(generator.state_dict(), config.save_ckpt_dir)
+    print('Saved checkpoint at: ' + config.save_ckpt_dir)
 
 if __name__ == '__main__':
     main()
