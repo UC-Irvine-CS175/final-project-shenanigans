@@ -1,0 +1,23 @@
+program: resnet101.py
+command:
+  - ${env}
+  - python3
+  - ${program}
+  - ${args}
+method: random
+metric:
+  goal: minimize
+  name: loss
+parameters:
+  epochs: 
+    distribution: int_uniform
+    min: 10
+    max: 20
+  batch_size:
+    distribution: int_uniform
+    min: 16
+    max: 32
+  learning_rate:
+    distribution: uniform
+    min: 0.0003
+    max: 0.001
