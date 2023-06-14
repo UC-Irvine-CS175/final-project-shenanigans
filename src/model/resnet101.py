@@ -1,3 +1,4 @@
+from pathlib import Path
 import torch
 import torch.nn as nn
 import pytorch_lightning as pl
@@ -5,6 +6,7 @@ import torchvision.models as models
 from pytorch_lightning.callbacks import ModelCheckpoint
 import wandb
 from pytorch_lightning.loggers import WandbLogger
+from PIL import Image
 
 import os
 import pyprojroot
@@ -22,7 +24,8 @@ import boto3
 from botocore import UNSIGNED
 from botocore.config import Config
 
-from matplotlib import pyplot as plt, transforms
+from matplotlib import pyplot as plt
+from torchvision.transforms import transforms
 from dataclasses import dataclass
 
 @dataclass
@@ -107,6 +110,22 @@ class ResNetModel(pl.LightningModule):
         optimizer = torch.optim.Adam(self.parameters(), lr=self.learning_rate)
         return optimizer
     
+    def load_from_checkpoint(self, checkpoint_path):
+        self.load_state_dict(torch.load(checkpoint_path, map_location=self.device))
+        self.eval()
+
+    def predict(self, image_path):
+        image = Image.open(image_path).convert("RGB")
+        transform = transforms.Compose([
+            transforms.Resize((224, 224)),
+            transforms.ToTensor(),
+        ])
+        input_tensor = transform(image).unsqueeze(0).to(self.device)
+        output = self(input_tensor)
+        _, predicted_idx = torch.max(output, 1)
+        predicted_label = [k for k, v in self.label_mapping.items() if v == predicted_idx.item()][0]
+        return predicted_label
+    
 def main():
     # Initialize a BPSConfig object
     config = BPSConfig()
@@ -157,28 +176,54 @@ def main():
             val_dataloaders=data_module.val_dataloader())
 
     # Save trained model to checkpoint
-    checkpoint_path = 'checkpoints/resnet101_model-hi_hr_4-sweep.pth'
+    checkpoint_path = 'checkpoints/resnet101_model-hi_hr_4-sweep_best_params.pth'
     torch.save(model.state_dict(), checkpoint_path)
 
     wandb.finish()
 
-if __name__ == '__main__':
+def sweep():
     sweep_config = {
-        'method': 'random',
-        'name': 'sweep',
-        'metric': {
-            'goal': 'minimize', 
-            'name': 'loss'
-            },
-        'parameters': {
-            'batch_size': {'values': [16, 32, 64]},
-            'epochs': {'values': [5, 10, 15]},
-            'lr': {'min': 0.0003, 'max': 0.01}
+            'method': 'random',
+            'name': 'sweep',
+            'metric': {
+                'goal': 'minimize', 
+                'name': 'loss'
+                },
+            'parameters': {
+                'batch_size': {'values': [32]}, #{'values': [16, 32, 64]},
+                'epochs': {'values': [15]}, #{'values': [5, 10, 15]},
+                'lr': {'values': [0.007957998759594619
+    ]}, #{'min': 0.0003, 'max': 0.01}
+            }
         }
-    }
+
     sweep_id = wandb.sweep(
             sweep=sweep_config,
             project="resnet101"
     )
 
-    wandb.agent(sweep_id=sweep_id, function=main, count=10)
+    wandb.agent(sweep_id=sweep_id, function=main, count=1)
+
+def predict():
+    num_classes = 2
+    label_mapping = {'Fe': 0, 'X-ray': 1}
+    model = ResNetModel(num_classes, label_mapping)
+
+    checkpoint_path = "checkpoints/resnet101_model-hi_hr_4-sweep_best_params.pth"
+    model.load_from_checkpoint(checkpoint_path)
+
+    model.eval()
+
+    print("Predicted Labels:")
+    for i in range(1, 6):
+        image_path = f"synthetic{i}.png"
+        predicted_label = model.predict(image_path)
+        print(image_path, predicted_label)
+
+    return 1
+
+if __name__ == '__main__':
+    # sweep()
+
+    predict()
+    
