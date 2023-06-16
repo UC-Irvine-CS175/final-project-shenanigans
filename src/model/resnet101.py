@@ -176,7 +176,7 @@ def main():
             val_dataloaders=data_module.val_dataloader())
 
     # Save trained model to checkpoint
-    checkpoint_path = 'checkpoints/resnet101_model-hi_hr_4-sweep_best_params.pth'
+    checkpoint_path = 'checkpoints/resnet101_model-hi_hr_4.pth'
     torch.save(model.state_dict(), checkpoint_path)
 
     wandb.finish()
@@ -209,7 +209,7 @@ def predict():
     label_mapping = {'Fe': 0, 'X-ray': 1}
     model = ResNetModel(num_classes, label_mapping)
 
-    checkpoint_path = "checkpoints/resnet101_model-hi_hr_4-sweep_best_params.pth"
+    checkpoint_path = "checkpoints/resnet101_model-hi_hr_4.pth"
     model.load_from_checkpoint(checkpoint_path)
 
     model.eval()
