@@ -338,7 +338,7 @@ def main():
     #     data_dir=output_dir
     # )
 
-    dose_Gy_specifier = 'all'
+    dose_Gy_specifier = 'hi'
     hr_post_exposure_val = 4
 
     subset_new_path_fname, _ = export_subset_meta_dose_hr(
