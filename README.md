@@ -7,10 +7,10 @@ However, creating a comprehensive dataset for radiation classification is challe
 
 ## Getting Started
 
-### Setting Up the Environment
+#### Setting Up the Environment
 The environment can be setup by following the instructions in `setup/environments/README.md`.
 
-### Downloading the dataset
+#### Downloading the Dataset
 The data comes from the [NASA BPS Microscopy Dataset](https://aws.amazon.com/marketplace/pp/prodview-6eq625wnwk4b6) which contains Fluorescence microscopy images of individual nuclei from mouse fibroblast cells, irradiated with Fe particles or X-rays. It is stored on an AWS S3 bucket and can be downloaded by running `src/data_utils.py`. The `dose_Gy_specifier` and `hr_post_exposure_val` variables can be changed to match the desired subset of the data.
 
 ## Models
